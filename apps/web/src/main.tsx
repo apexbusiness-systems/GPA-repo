@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { RouteLink, Sidebar, navigate, useRoute } from './lib';
 import { AppRoot, SessionFooter } from './app';
+import { PrivacyPolicy } from './privacy';
+import { TermsOfService } from './terms';
 
 type Coach = {
   name: string;
@@ -127,7 +129,7 @@ function OverlayPreview(): React.JSX.Element {
       </div>
       <div className="game-window">
         <img className="overlay-source" src="/art/component-live-overlay.png" alt="" />
-        <div className="gp-chip"><img alt="GamePoint" src="/art/gpa-wordmark.png" /></div>
+        <div className="gp-chip"><img alt="GamePointAgent" src="/art/gpa-wordmark.png" /></div>
         <div className="score-strip" aria-label="Live scoreboard">
           <span className="squad-strip"><img src="/art/portrait-ro.png" alt="" /><img src="/art/portrait-maya.png" alt="" /></span>
           <span>2</span>
@@ -158,7 +160,7 @@ function OverlayPreview(): React.JSX.Element {
         <div className="reticle" />
         <div className="overlay-hud">
           <span>100 ◎</span>
-          <img alt="GamePoint" src="/art/gpa-wordmark.png" />
+          <img alt="GamePointAgent" src="/art/gpa-wordmark.png" />
           <span>25 / 75</span>
         </div>
       </div>
@@ -314,7 +316,7 @@ function MarketingHero(): React.JSX.Element {
       <div className="marketing-copy">
         <span className="demo-chip animate-enter" style={{ marginBottom: '1rem', display: 'inline-block' }}>PRIVATE BETA</span>
         <h1 className="animate-enter delay-1">The AI Coach That Watches Your Game, Not Your Screen.</h1>
-        <p className="animate-enter delay-2">GamePoint is the coach in your corner: it watches the fight, it never touches the controls. Real-time positioning and decision advice — zero game injection, 100% safe.</p>
+        <p className="animate-enter delay-2">GamePointAgent is the coach in your corner: it watches the fight, it never touches the controls. Real-time positioning and decision advice — zero game injection, 100% safe.</p>
         <button className="primary-cta animate-enter delay-3" onClick={() => navigate('/app')} type="button">Start Private Beta</button>
       </div>
     </section>
@@ -378,17 +380,37 @@ function MarketingLanding(): React.JSX.Element {
   return (
     <div className="marketing-page" ref={containerRef}>
       <header className="marketing-nav animate-enter">
-        <strong><b style={{ color: 'var(--lime)', marginRight: '8px'}}>G</b> GAMEPOINT</strong>
+        <strong><b style={{ color: 'var(--lime)', marginRight: '8px'}}>G</b> GAMEPOINTAGENT</strong>
         <button className="ghost-button" onClick={() => navigate('/app')} type="button">Sign In</button>
       </header>
       <MarketingHero />
       <DashboardMockup />
+      <footer className="marketing-footer animate-enter delay-4">
+        <div className="footer-content">
+          <div className="footer-brand">
+            <strong><b style={{ color: 'var(--lime)', marginRight: '8px'}}>G</b> GAMEPOINTAGENT</strong>
+            <p>Screen-vision-only AI gaming companion. Zero game injection.</p>
+          </div>
+          <div className="footer-links">
+            <RouteLink to="/privacy">Privacy Policy</RouteLink>
+            <span>·</span>
+            <RouteLink to="/terms">Terms of Service</RouteLink>
+            <span>·</span>
+            <RouteLink to="/app">Sign In</RouteLink>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <small>© 2026 GamePointAgent. All rights reserved. Not runtime supported until cleared per title.</small>
+        </div>
+      </footer>
     </div>
   );
 }
 
 function Root(): React.JSX.Element {
   const path = useRoute();
+  if (path === '/privacy') return <PrivacyPolicy />;
+  if (path === '/terms') return <TermsOfService />;
   return path === '/' || path === '' ? <MarketingLanding /> : <AppRoot />;
 }
 

@@ -2,7 +2,7 @@
 
 ## `main`
 - Require PR review (≥1) — no direct pushes.
-- Required status checks: `gates-and-ts`, `ingest`, `rust`, `security` (all four CI jobs).
+- Required status checks: `gates-and-ts`, `ingest`, `rust`, `security` (all four CI jobs). Note: `gates-and-ts` strictly executes and requires `compliance-gate`, `license-gate`, `attestation-gate`, `copy-gate`, contract hash sync, `typecheck`, and unit test suites before bundle assembly.
 - Require branches up to date before merge; linear history.
 
 ## Releases

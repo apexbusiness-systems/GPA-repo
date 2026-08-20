@@ -34,7 +34,7 @@ impl ForegroundProbe for FixedProbe {
 /// runs after the hot path has yielded).
 pub fn encode_jpeg(frame: &RawFrame, quality: u8) -> Result<Vec<u8>, String> {
     let mut rgb = Vec::with_capacity((frame.width * frame.height * 3) as usize);
-    for px in frame.bgra.chunks_exact(4) {
+    for px in frame.bgra.as_chunks::<4>().0 {
         rgb.extend_from_slice(&[px[2], px[1], px[0]]);
     }
     let img = image::RgbImage::from_raw(frame.width, frame.height, rgb)

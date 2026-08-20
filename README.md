@@ -1,4 +1,4 @@
-<p align="center"><img src="apps/web/public/art/gpa-wordmark.png" alt="GamePoint" width="420" /></p>
+<p align="center"><img src="apps/web/public/art/gpa-wordmark.png" alt="GamePointAgent" width="420" /></p>
 
 # GamePoint — Screen-Vision AI Game Coaching
 

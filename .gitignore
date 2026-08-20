@@ -14,3 +14,6 @@ docs/evidence/web-home-screenshot.png
 # Unpacked skill archives (zips are canonical)
 .agents/skills/*/
 services/capture-win/target/
+*.log
+playwright-report/
+test-results/

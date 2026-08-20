@@ -16,6 +16,8 @@ GREP=(grep -rInE
   --exclude-dir=docs
   --exclude-dir=governance
   --exclude-dir=.agents
+  --exclude-dir=.understand-anything
+  --exclude-dir=.claude
   --exclude=ENV.example
 )
 

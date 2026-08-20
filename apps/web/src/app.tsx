@@ -106,7 +106,7 @@ function Login(): React.JSX.Element {
   return (
     <div className="auth-wrap">
       <form className="panel auth-card" onSubmit={(e) => { void submit(e); }}>
-        <div className="brand"><img alt="GamePoint" className="brand-wordmark" src="/art/gpa-wordmark.png" /></div>
+        <div className="brand"><img alt="GamePointAgent" className="brand-wordmark" src="/art/gpa-wordmark.png" /></div>
         <h1>{mode === 'signin' ? 'Sign in' : 'Create your account'}</h1>
         <p className="muted">Screen-only coaching. No game injection. Consent required before capture.</p>
         <Field label="Email">
@@ -163,7 +163,7 @@ function Onboarding(props: { userId: string; onDone: (p: Profile) => void }): Re
           <span>I confirm I am 13 or older.</span>
         </label>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <button disabled={busy || !ageOk} type="submit">{busy ? 'Saving…' : 'Enter GamePoint →'}</button>
+        <button disabled={busy || !ageOk} type="submit">{busy ? 'Saving…' : 'Enter GamePointAgent →'}</button>
       </form>
     </div>
   );
@@ -472,13 +472,50 @@ export function AppRoot(): React.JSX.Element {
   if (profile === null) return <Onboarding onDone={setProfile} userId={session.user.id} />;
 
   const email = session.user.email ?? 'you';
+  const downloadUrl = import.meta.env.VITE_GAMEPOINT_DOWNLOAD_URL as string | undefined;
   let view: React.JSX.Element;
   if (path === '/app' || path === '/app/') view = <Dashboard email={email} profile={profile} />;
   else if (path.startsWith('/app/sessions')) view = <Sessions userId={session.user.id} />;
   else if (path.startsWith('/app/coaches')) view = <Coaches onProfile={setProfile} profile={profile} />;
   else if (path.startsWith('/app/insights')) view = <Insights />;
   else if (path.startsWith('/app/settings')) view = <Settings email={email} onProfile={setProfile} profile={profile} />;
-  else if (path.startsWith('/app/overlay')) view = (
+  else if (path.startsWith('/app/overlay')) view = downloadUrl ? (
+    <section className="panel gate-panel" id="live-overlay-ready">
+      <div className="panel-head">
+        <h2>Live Overlay</h2>
+        <span className="ok-chip">WINDOWS INSTALLER READY</span>
+      </div>
+      <p>The live overlay is a desktop application that captures your screen with consent and renders coach callouts in a PiP HUD.</p>
+      <div className="cta-row" style={{ marginTop: '1.25rem', marginBottom: '1.25rem' }}>
+        <a
+          className="download-cta"
+          href={downloadUrl}
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '0.75rem 1.5rem',
+            background: 'var(--lime)',
+            color: '#030402',
+            fontWeight: 'bold',
+            borderRadius: '4px',
+            textDecoration: 'none',
+          }}
+          target="_blank"
+        >
+          <span>Download Windows Overlay (.exe) ↓</span>
+        </a>
+      </div>
+      <ul>
+        <li>No game injection — OS-level screen capture only</li>
+        <li>Consent required before capture</li>
+        <li>Voice/audio: Disabled in v1.0</li>
+        <li>Not runtime supported until cleared per title</li>
+      </ul>
+      <RouteLink className="muted-link" to="/app">← Back to dashboard</RouteLink>
+    </section>
+  ) : (
     <Gate
       body="The live overlay is a desktop application that captures your screen with consent and renders coach callouts in a PiP HUD. It is not yet distributed — no download is offered because none is ready."
       facts={['No game injection — OS-level screen capture only', 'Consent required before capture', 'Voice/audio: Disabled in v1.0', 'Not runtime supported until cleared per title']}
@@ -515,6 +552,9 @@ export function AppRoot(): React.JSX.Element {
         <footer>
           <span><i /> Screen-only coaching</span>
           <span>No game injection · Not runtime supported until cleared</span>
+          <span className="footer-legal">
+            <RouteLink to="/privacy">Privacy Policy</RouteLink> · <RouteLink to="/terms">Terms of Service</RouteLink>
+          </span>
           <span>v1.2.0</span>
         </footer>
       </div>

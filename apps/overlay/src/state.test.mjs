@@ -86,7 +86,7 @@ test('advantage refusal renders the policy state and counts it', () => {
     type: 'response/received',
     response: advice({
       advice_text:
-        'GamePoint coaches decisions — it never calls out live opponent information you could not perceive yourself. Ask about builds, rotations, or macro strategy instead.',
+        'GamePointAgent coaches decisions — it never calls out live opponent information you could not perceive yourself. Ask about builds, rotations, or macro strategy instead.',
       evidence_ids: [],
       source_tier: 'policy',
       not_verified: true,

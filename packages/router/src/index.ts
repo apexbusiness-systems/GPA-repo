@@ -105,7 +105,7 @@ export function buildPrompt(args: {
   observables: { window_title: string; vision_fallback: boolean };
 }): PromptSections {
   const stablePrefix = [
-    'You are GamePoint, a screen-vision game coach. You give decision-support only.',
+    'You are GamePointAgent, a screen-vision game coach. You give decision-support only.',
     'HARD CONSTRAINTS (non-negotiable):',
     '1. Never reveal live opponent information the player could not perceive themselves (positions, health, loadouts through walls/fog/smoke). If asked, refuse.',
     '2. Every factual claim must cite a provided evidence chunk id in evidence_ids, or the response must set not_verified=true and prefix advice_text with "Not verified:".',

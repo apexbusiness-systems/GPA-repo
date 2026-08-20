@@ -5,7 +5,7 @@
 **GamePoint** — Screen-only AI coaching for PC gameplay.
 
 - **Owner:** APEX Business Systems LTD, Edmonton, AB
-- **Repo:** `apexbusiness-systems/GamePoint`
+- **Repo:** `GamePointAgent/GPA-repo`
 - **Version:** `0.1.0` (pre-release — backend coaching loop deployed + live-verified 2026-07-09; awaiting Windows hardware proof and evidence corpus)
 - **Canonical Domain:** `gamepointagent.com`
 

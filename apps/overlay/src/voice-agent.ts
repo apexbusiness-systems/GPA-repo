@@ -1,4 +1,4 @@
-// GamePoint voice agent — local-only TTS output + closed-vocabulary, push-to-talk STT input.
+// GamePointAgent voice agent — local-only TTS output + closed-vocabulary, push-to-talk STT input.
 // WP-6 (docs/governance/contract-audit-v1.2.md). Governed by ADR-010.
 //
 // Hard invariants this module must never violate:
@@ -56,7 +56,7 @@ export function browserSpeechSynthesis(): SpeechSynthesisLike | null {
 // --- STT (input): closed-vocabulary intent matching, never open dictation -------------
 
 /**
- * GamePoint's request model is structured (HotkeyIntent), not conversational — AssistRequest
+ * GamePointAgent's request model is structured (HotkeyIntent), not conversational — AssistRequest
  * has no free-text query field. Voice input therefore recognizes a small, fixed phrase set and
  * maps it to the same three intents a hotkey press already sends. Anything that doesn't match
  * fails closed: no request is built, no tokens are spent, no assist-budget circuit is touched.

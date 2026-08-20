@@ -40,17 +40,17 @@ function ConsentScreen({ dispatch }: { dispatch: React.Dispatch<Action> }) {
   const [ofAge, setOfAge] = React.useState(false);
   return (
     <section className="card flow" aria-labelledby="consent-title">
-      <h1 id="consent-title">Before GamePoint can coach you</h1>
+      <h1 id="consent-title">Before GamePointAgent can coach you</h1>
       <p className="metaphor">
-        GamePoint is the coach in your corner: it watches the fight, it never touches the
+        GamePointAgent is the coach in your corner: it watches the fight, it never touches the
         controls.
       </p>
       <ul className="plain">
         <li><strong>What is captured:</strong> your screen, only while capture is on, only when you press the assist hotkey.</li>
         <li><strong>What leaves this device:</strong> a single frame per assist, sent encrypted for analysis, processed in memory and discarded after the answer.</li>
         <li><strong>What is kept:</strong> nothing by default — no frames, no recordings, no chat, no usernames.</li>
-        <li><strong>Voice:</strong> off by default. If you turn it on in Settings, GamePoint can speak advice aloud and listen only while you hold the talk button — never in the background, and it asks again every session.</li>
-        <li><strong>Anti-cheat note:</strong> GamePoint never touches game processes, but any third-party overlay can draw a false-positive review on kernel anti-cheat titles. Read the per-title notes before ranked play.</li>
+        <li><strong>Voice:</strong> off by default. If you turn it on in Settings, GamePointAgent can speak advice aloud and listen only while you hold the talk button — never in the background, and it asks again every session.</li>
+        <li><strong>Anti-cheat note:</strong> GamePointAgent never touches game processes, but any third-party overlay can draw a false-positive review on kernel anti-cheat titles. Read the per-title notes before ranked play.</li>
       </ul>
       <label className="check">
         <input type="checkbox" checked={ofAge} onChange={(e) => setOfAge(e.target.checked)} />
@@ -63,7 +63,7 @@ function ConsentScreen({ dispatch }: { dispatch: React.Dispatch<Action> }) {
           dispatch({ type: 'consent/accept', ageGatePassed: ofAge, now: new Date().toISOString() })
         }
       >
-        I understand — enable GamePoint
+        I understand — enable GamePointAgent
       </button>
     </section>
   );
@@ -119,7 +119,7 @@ function AdviceBody({ state }: { state: OverlayState }) {
     case 'refused':
       return (
         <p>
-          <span className="badge policy">Coaching only</span> GamePoint won’t call out live
+          <span className="badge policy">Coaching only</span> GamePointAgent won’t call out live
           opponent info you couldn’t see yourself. Ask about builds, timers, or strategy instead.
         </p>
       );
@@ -134,7 +134,7 @@ function AdviceBody({ state }: { state: OverlayState }) {
       return (
         <p>
           <span className="badge warn">Unverified title</span>{' '}
-          {hud.titleName ?? 'This game'} hasn’t passed GamePoint’s compliance review, so live
+          {hud.titleName ?? 'This game'} hasn’t passed GamePointAgent’s compliance review, so live
           coaching is off. General questions still work in the companion app.
         </p>
       );
@@ -230,7 +230,7 @@ function Hud({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatc
   }, [state.hud.kind === 'advice' ? state.hud.receivedAt : null]);
 
   return (
-    <section className="card flow" aria-label="GamePoint coaching HUD">
+    <section className="card flow" aria-label="GamePointAgent coaching HUD">
       {/* 3-second sequence, tier 1: system status — text + indicator, never color alone. */}
       <header className="hud-bar">
         <span className="status" role="status">
@@ -386,7 +386,7 @@ export default function App() {
     <main className="overlay" style={{ opacity: state.settings.hudOpacity }}>
       {binding.mode === 'invalid' && (
         <div className="binding-banner refused" role="alert">
-          Session config refused: {binding.error}. Launch the overlay from the GamePoint web app.
+          Session config refused: {binding.error}. Launch the overlay from the GamePointAgent web app.
         </div>
       )}
       {binding.mode === 'configured' && (

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright configuration for GamePoint web user-shoes E2E tests.
+ * Playwright configuration for GamePointAgent web user-shoes E2E tests.
  *
  * The suite tests the *built* app served via `vite preview` so it exercises
  * the same bundle that Cloudflare Workers Builds produces.
@@ -15,7 +15,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Capped locally too (not just in CI): two projects now run against one
+  // shared `vite preview` server, and unconstrained parallelism (Playwright's
+  // default of half the CPU cores) was flaky under that combined load on
+  // typical dev hardware even though every test passes at workers: 2.
+  workers: process.env.CI ? 1 : 2,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:4173',
@@ -35,6 +39,15 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: ['**/mobile-sidebar.spec.ts'],
+    },
+    {
+      // Plain viewport override on desktop Chrome rather than a full device
+      // profile (e.g. devices['iPhone 13']) — this is testing a CSS breakpoint,
+      // not touch/UA-dependent behavior, so keep the blast radius to viewport size.
+      name: 'mobile-nav',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 375, height: 812 } },
+      testMatch: ['**/mobile-sidebar.spec.ts'],
     },
   ],
 });

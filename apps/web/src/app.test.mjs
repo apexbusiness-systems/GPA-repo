@@ -76,3 +76,33 @@ test('Coach Squad cards map 1:1 to coaching_mode, are interactive, and disclose 
   assert.ok(app.includes('aria-pressed={props.profile.coaching_mode === c.mode}'), 'coach tiles are not wired to the persisted coaching_mode');
   assert.ok(app.includes('does not run four separate agents'), 'missing single-engine disclosure copy');
 });
+
+test('public legal routes exist, dispatch without auth gate, and disclose draft review status', () => {
+  const main = src('main.tsx');
+  assert.ok(main.includes('path === \'/privacy\'') && main.includes('<PrivacyPolicy />'), 'Root() does not dispatch PrivacyPolicy at top level');
+  assert.ok(main.includes('path === \'/terms\'') && main.includes('<TermsOfService />'), 'Root() does not dispatch TermsOfService at top level');
+
+  const privacy = src('privacy.tsx');
+  const terms = src('terms.tsx');
+  assert.ok(privacy.includes('UNCERTAIN: draft legal disclosure pending qualified legal review before public traffic'), 'privacy missing legal review notice');
+  assert.ok(terms.includes('UNCERTAIN: draft legal terms pending qualified legal review before public traffic'), 'terms missing legal review notice');
+  assert.ok(privacy.includes('Zero Game Injection'), 'privacy missing core architecture statement');
+  assert.ok(terms.includes('Kernel Anti-Cheat Disclosure'), 'terms missing kernel anti-cheat disclosure');
+});
+
+test('marketing landing renders real footer with legal route links outside inert container', () => {
+  const main = src('main.tsx');
+  assert.ok(main.includes('className="marketing-footer'), 'MarketingLanding missing real footer');
+  assert.ok(main.includes('<RouteLink to="/privacy">Privacy Policy</RouteLink>'), 'Marketing footer missing privacy link');
+  assert.ok(main.includes('<RouteLink to="/terms">Terms of Service</RouteLink>'), 'Marketing footer missing terms link');
+  // Confirm inert demo-surface is intact and unchanged
+  assert.ok(main.includes('<div className="demo-surface" inert>'), 'demo-surface container must remain inert');
+});
+
+test('overlay download UI correctly supports honest refusal when unset and download CTA when set', () => {
+  const app = src('app.tsx');
+  assert.ok(app.includes('VITE_GAMEPOINT_DOWNLOAD_URL'), 'app.tsx does not read VITE_GAMEPOINT_DOWNLOAD_URL');
+  assert.ok(app.includes('It is not yet distributed — no download is offered because none is ready'), 'honest refusal copy missing when download url unset');
+  assert.ok(app.includes('Download Windows Overlay'), 'download CTA link missing when download url set');
+});
+

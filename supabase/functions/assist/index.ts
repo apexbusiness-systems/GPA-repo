@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
       req,
       403,
       'TITLE_NOT_ELIGIBLE',
-      'This title has not passed the GamePoint compliance gate for live coaching.',
+      'This title has not passed the GamePointAgent compliance gate for live coaching.',
       requestId,
     );
   }

@@ -18,9 +18,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Compliance gates first: no banned capture APIs, no NC licenses, no drift.
+      # Compliance gates first: no banned capture APIs, no NC licenses, rotation attestation, copy policy, no drift.
       - run: bash governance/ci/compliance-gate.sh
       - run: python governance/ci/license-gate.py --check
+      - run: bash governance/ci/attestation-gate.sh
+      - run: bash governance/ci/copy-gate.sh
       - run: node packages/contracts/scripts/sync-edge.mjs --check
       - run: pnpm typecheck
       - run: node --test packages/contracts/src/*.test.mjs packages/router/src/*.test.mjs apps/overlay/src/*.test.mjs

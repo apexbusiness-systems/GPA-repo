@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Publishable key: safe for client bundles by design; RLS enforces all data access.
@@ -74,25 +74,91 @@ export function RouteLink(props: { to: string; className?: string; children: Rea
 
 export function Sidebar(props: { footer?: React.ReactNode }): React.JSX.Element {
   const path = useRoute();
+  const [isOpen, setIsOpen] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-close the drawer whenever navigation happens (link click or back/forward).
+  useEffect(() => { setIsOpen(false); }, [path]);
+
+  // Focus trap + Escape-to-close, scoped to the drawer's own focusable elements.
+  useEffect(() => {
+    if (!isOpen) return;
+    const aside = asideRef.current;
+    const focusable = aside
+      ? Array.from(aside.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'))
+      : [];
+    focusable[0]?.focus();
+
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+        toggleRef.current?.focus();
+        return;
+      }
+      if (e.key === 'Tab' && focusable.length > 0) {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
+
+  // Lock background scroll while the drawer covers the page (narrow widths only —
+  // desktop never sets isOpen since the toggle is hidden there).
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [isOpen]);
+
+  const closeAndRefocus = (): void => {
+    setIsOpen(false);
+    toggleRef.current?.focus();
+  };
+
   return (
-    <aside className="sidebar" aria-label="GamePoint navigation">
-      <div className="brand">
-        <img alt="GamePoint" className="brand-wordmark" src="/art/gpa-wordmark.png" />
-      </div>
-      <nav>
-        {NAV.map((item) => (
-          <a
-            className={(item.path === '/' ? path === '/' : path.startsWith(item.path)) ? 'active' : undefined}
-            href={item.path}
-            key={item.label}
-            onClick={(e) => { e.preventDefault(); navigate(item.path); }}
-          >
-            <span>{item.glyph}</span>
-            {item.label}
-          </a>
-        ))}
-      </nav>
-      {props.footer}
-    </aside>
+    <>
+      <button
+        aria-controls="primary-nav"
+        aria-expanded={isOpen}
+        aria-label={isOpen ? 'Close navigation' : 'Open navigation'}
+        className="nav-toggle"
+        onClick={() => setIsOpen((v) => !v)}
+        ref={toggleRef}
+        type="button"
+      >
+        {isOpen ? '✕' : '☰'}
+      </button>
+      {isOpen && <div className="sidebar-backdrop" onClick={closeAndRefocus} />}
+      <aside aria-label="GamePointAgent navigation" className={isOpen ? 'sidebar is-open' : 'sidebar'} ref={asideRef}>
+        <div className="brand">
+          <img alt="GamePointAgent" className="brand-wordmark" src="/art/gpa-wordmark.png" />
+        </div>
+        <nav id="primary-nav">
+          {NAV.map((item) => (
+            <a
+              className={(item.path === '/' ? path === '/' : path.startsWith(item.path)) ? 'active' : undefined}
+              href={item.path}
+              key={item.label}
+              onClick={(e) => { e.preventDefault(); navigate(item.path); }}
+            >
+              <span>{item.glyph}</span>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+        {props.footer}
+      </aside>
+    </>
   );
 }
