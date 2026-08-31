@@ -464,11 +464,14 @@ export const App: React.FC = () => {
               <VoiceOrb
                 isListening={isListening}
                 amplitude={telemetry.micAmplitude}
-                onToggle={() =>
+                onToggle={() => {
+                  if (!state.voice.consented) {
+                    dispatch({ type: 'voice/consent-set', consented: true });
+                  }
                   dispatch({
                     type: state.voice.listening ? 'voice/ptt-end' : 'voice/ptt-start',
-                  })
-                }
+                  });
+                }}
               />
             </div>
           </div>
