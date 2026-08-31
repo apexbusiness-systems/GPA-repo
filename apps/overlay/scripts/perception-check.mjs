@@ -5,8 +5,9 @@ import { chromium } from '@playwright/test';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = 'dist';
+const root = fileURLToPath(new URL('../dist', import.meta.url));
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 const server = createServer((req, res) => {
   let p = join(root, req.url === '/' ? 'index.html' : req.url);

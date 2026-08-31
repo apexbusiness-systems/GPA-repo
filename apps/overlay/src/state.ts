@@ -1,9 +1,70 @@
 // Overlay state: pure, framework-free, node-tested. The UI is a projection of
 // this reducer — every screen/state in the apex-frontend State Gate exists here.
+import React, { useEffect, useMemo, useReducer } from 'react';
 import { z } from 'zod';
 import type { CoachingResponse, HotkeyIntent } from 'contracts';
 
 export type Playstyle = 'story' | 'mastery' | 'rank';
+
+// --- Coach Profiles -------------------------------------------------------------
+
+export interface CoachProfile {
+  id: string;
+  name: string;
+  role: string;
+  portrait: string;
+  tone: Playstyle;
+  cue: string;
+}
+
+export const COACH_ROSTER: CoachProfile[] = [
+  {
+    id: 'niko',
+    name: 'Niko',
+    role: 'The Analyst',
+    portrait: '/art/portrait-niko.png',
+    tone: 'story',
+    cue: 'They are low on resources. Group before the next push.',
+  },
+  {
+    id: 'ro',
+    name: 'Ro',
+    role: 'The Shotcaller',
+    portrait: '/art/portrait-ro.png',
+    tone: 'mastery',
+    cue: 'Good opening. Your second player is close enough to follow up.',
+  },
+  {
+    id: 'maya',
+    name: 'Maya',
+    role: 'The Anchor',
+    portrait: '/art/portrait-maya.png',
+    tone: 'rank',
+    cue: 'Hold your position. Do not overextend while your team regroups.',
+  },
+  {
+    id: 'june',
+    name: 'June',
+    role: 'The Builder',
+    portrait: '/art/portrait-june.png',
+    tone: 'mastery',
+    cue: 'Set up here, then commit together.',
+  },
+];
+
+// --- Telemetry State ------------------------------------------------------------
+
+export interface TelemetryState {
+  wsConnected: boolean;
+  latencyMs: number;
+  micAmplitude: number;
+}
+
+export const defaultTelemetry: TelemetryState = {
+  wsConnected: true,
+  latencyMs: 14,
+  micAmplitude: 0.42,
+};
 
 // --- Persisted settings (versioned, Zod-validated at the storage boundary) -------
 
@@ -85,6 +146,8 @@ export interface OverlayState {
   session: { adviceCount: number; verifiedCount: number; refusals: number };
   /** WP-6: session-only voice state — see VoiceState above for why this isn't persisted. */
   voice: VoiceState;
+  selectedCoachId: string;
+  telemetry: TelemetryState;
 }
 
 export function initialState(settings: PersistedSettings): OverlayState {
@@ -97,6 +160,8 @@ export function initialState(settings: PersistedSettings): OverlayState {
     captureLocked: false,
     session: { adviceCount: 0, verifiedCount: 0, refusals: 0 },
     voice: initialVoiceState,
+    selectedCoachId: 'ro',
+    telemetry: defaultTelemetry,
   };
 }
 
@@ -112,6 +177,8 @@ export type Action =
   | { type: 'title/supported' }
   | { type: 'mute/toggle' }
   | { type: 'opacity/set'; value: number }
+  | { type: 'coach/select'; coachId: string }
+  | { type: 'telemetry/update'; telemetry: Partial<TelemetryState> }
   // WP-6 / ADR-010 — session-only voice actions (never touch PersistedSettings).
   | { type: 'voice/consent-set'; consented: boolean }
   | { type: 'voice/output-toggle' }
@@ -136,6 +203,10 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       const settings = { ...state.settings, playstyle: action.playstyle };
       return { ...state, settings, screen: 'hud' };
     }
+    case 'coach/select':
+      return { ...state, selectedCoachId: action.coachId };
+    case 'telemetry/update':
+      return { ...state, telemetry: { ...state.telemetry, ...action.telemetry } };
     case 'binding/refused':
       // Invalid config is a hard stop: capture off now and locked until corrected.
       return { ...state, captureLocked: true, captureActive: false, hud: { kind: 'idle' } };
@@ -225,4 +296,83 @@ export function splitNotVerified(text: string): { prefix: string | null; body: s
 
 export function personaLabel(playstyle: Playstyle): string {
   return { story: 'Story first', mastery: 'Mastery', rank: 'Rank climb' }[playstyle];
+}
+
+// --- Custom Hooks ------------------------------------------------------------------
+
+const STORAGE_KEY = 'gamepoint.overlay.v1';
+
+export function usePersistedReducer(): [OverlayState, React.Dispatch<Action>] {
+  const [state, dispatch] = useReducer(
+    reduce,
+    undefined,
+    () => initialState(loadSettings(typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null)),
+  );
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
+    }
+  }, [state.settings]);
+  return [state, dispatch];
+}
+
+export interface VoiceAgentStateReturn {
+  isListening: boolean;
+  activeCoach: CoachProfile;
+  telemetry: TelemetryState;
+  transcript: {
+    text: string;
+    action?: string;
+    confidence?: number;
+    coach?: CoachProfile;
+  } | null;
+  state: OverlayState;
+  dispatch: React.Dispatch<Action>;
+  selectCoach: (coachId: string) => void;
+}
+
+export function useVoiceAgentState(): VoiceAgentStateReturn {
+  const [state, dispatch] = usePersistedReducer();
+
+  const activeCoach = useMemo(() => {
+    return COACH_ROSTER.find((c) => c.id === state.selectedCoachId) ?? COACH_ROSTER[0];
+  }, [state.selectedCoachId]);
+
+  const transcript = useMemo(() => {
+    if (state.hud.kind === 'advice') {
+      return {
+        text: state.hud.response.advice_text,
+        action:
+          state.hud.response.recommended_action !== 'none'
+            ? state.hud.response.recommended_action
+            : undefined,
+        confidence: state.hud.response.confidence,
+        coach: activeCoach,
+      };
+    }
+    if (state.hud.kind === 'thinking') {
+      return {
+        text: 'Reading the frame…',
+        coach: activeCoach,
+      };
+    }
+    return {
+      text: activeCoach.cue,
+      coach: activeCoach,
+    };
+  }, [state.hud, activeCoach]);
+
+  const selectCoach = (coachId: string) => {
+    dispatch({ type: 'coach/select', coachId });
+  };
+
+  return {
+    isListening: state.voice.listening,
+    activeCoach,
+    telemetry: state.telemetry,
+    transcript,
+    state,
+    dispatch,
+    selectCoach,
+  };
 }

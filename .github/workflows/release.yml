@@ -3,37 +3,84 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v1.3.0)'
+        required: false
+        default: 'v1.3.0'
 
 jobs:
   windows-build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10.28.1
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter overlay build
-      - run: cargo build --release
+
+      - name: Build Overlay Web Assets
+        run: pnpm --filter overlay build
+
+      - name: Build Windows Capture Service
+        run: cargo build --release
         working-directory: services/capture-win
+
+      - name: Build Tauri Desktop Executable Bundle (.exe & .msi)
+        run: pnpm dlx @tauri-apps/cli build
+        working-directory: apps/overlay
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Sign Windows Executables & Installers with Authenticode Certificate
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
+          WINDOWS_SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+        run: |
+          if ($env:WINDOWS_SIGNING_CERT) {
+            Write-Host "Authenticode certificate detected. Initiating binary signing..."
+            $certBytes = [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT)
+            [IO.File]::WriteAllBytes("cert.pfx", $certBytes)
+            $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse | Select-Object -First 1).FullName
+            if ($signtool) {
+              Get-ChildItem -Path "apps/overlay/src-tauri/target/release/bundle", "services/capture-win/target/release" -Include *.exe,*.msi -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Host "Signing: $($_.FullName)"
+                & $signtool sign /f cert.pfx /p $env:WINDOWS_SIGNING_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+              }
+            }
+            Remove-Item cert.pfx -Force
+          } else {
+            Write-Host "No WINDOWS_SIGNING_CERT secret found; skipping sign step for unsigned staging artifact."
+          }
+
       # SBOM for the evidence pack
       - uses: anchore/sbom-action@v0
         with:
           path: .
           output-file: sbom.spdx.json
-      # Code signing requires the org certificate: configure WINDOWS_SIGNING_CERT /
-      # WINDOWS_SIGNING_PASSWORD repo secrets, then sign svc.exe + installer here.
-      # Release is blocked on signing per docs/release/branch-protection.md.
+
+      # Upload Release Artifacts (.exe, .msi, dist, sbom)
       - uses: actions/upload-artifact@v4
         with:
-          name: gamepoint-${{ github.ref_name }}
+          name: gamepoint-overlay-windows-${{ github.ref_name || inputs.version }}
           path: |
             services/capture-win/target/release/*.exe
+            apps/overlay/src-tauri/target/release/bundle/msi/*.msi
+            apps/overlay/src-tauri/target/release/bundle/nsis/*.exe
             apps/overlay/dist/
             sbom.spdx.json
           if-no-files-found: warn

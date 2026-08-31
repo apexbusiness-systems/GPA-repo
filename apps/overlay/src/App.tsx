@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { invoke } from './tauri-bridge';
 import {
   Action,
   confidenceTier,
@@ -9,6 +10,7 @@ import {
   Playstyle,
   reduce,
   splitNotVerified,
+  useVoiceAgentState,
 } from './state';
 import { demoScript, FixtureResponseSource, makeResponseSource } from './realtime';
 import { resolveBinding } from './config';
@@ -19,45 +21,33 @@ import {
   matchVoiceIntent,
   speakAdvice,
 } from './voice-agent';
-
-const STORAGE_KEY = 'gamepoint.overlay.v1';
-
-function usePersistedReducer(): [OverlayState, React.Dispatch<Action>] {
-  const [state, dispatch] = useReducer(
-    reduce,
-    undefined,
-    () => initialState(loadSettings(localStorage.getItem(STORAGE_KEY))),
-  );
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
-  }, [state.settings]);
-  return [state, dispatch];
-}
+import { VoiceOrb } from './components/VoiceOrb';
+import { CoachCard } from './components/CoachCard';
 
 // --- Screens -----------------------------------------------------------------------
 
 function ConsentScreen({ dispatch }: { dispatch: React.Dispatch<Action> }) {
   const [ofAge, setOfAge] = React.useState(false);
   return (
-    <section className="card flow" aria-labelledby="consent-title">
-      <h1 id="consent-title">Before GamePointAgent can coach you</h1>
-      <p className="metaphor">
+    <section className="card flow gpa-hud-card max-w-md pointer-events-auto" aria-labelledby="consent-title">
+      <h1 id="consent-title" className="gpa-text-primary text-base font-bold">Before GamePointAgent can coach you</h1>
+      <p className="metaphor gpa-text-secondary text-xs leading-relaxed">
         GamePointAgent is the coach in your corner: it watches the fight, it never touches the
         controls.
       </p>
-      <ul className="plain">
+      <ul className="plain gpa-text-secondary text-xs">
         <li><strong>What is captured:</strong> your screen, only while capture is on, only when you press the assist hotkey.</li>
         <li><strong>What leaves this device:</strong> a single frame per assist, sent encrypted for analysis, processed in memory and discarded after the answer.</li>
         <li><strong>What is kept:</strong> nothing by default — no frames, no recordings, no chat, no usernames.</li>
         <li><strong>Voice:</strong> off by default. If you turn it on in Settings, GamePointAgent can speak advice aloud and listen only while you hold the talk button — never in the background, and it asks again every session.</li>
         <li><strong>Anti-cheat note:</strong> GamePointAgent never touches game processes, but any third-party overlay can draw a false-positive review on kernel anti-cheat titles. Read the per-title notes before ranked play.</li>
       </ul>
-      <label className="check">
+      <label className="check gpa-text-primary text-xs">
         <input type="checkbox" checked={ofAge} onChange={(e) => setOfAge(e.target.checked)} />
         I am 13 or older (required)
       </label>
       <button
-        className="primary"
+        className="primary gpa-target-min"
         disabled={!ofAge}
         onClick={() =>
           dispatch({ type: 'consent/accept', ageGatePassed: ofAge, now: new Date().toISOString() })
@@ -76,18 +66,18 @@ function PersonaScreen({ dispatch }: { dispatch: React.Dispatch<Action> }) {
     { value: 'rank', label: 'Rank', hint: 'Terse, macro-focused calls for climbing' },
   ];
   return (
-    <section className="card flow" aria-labelledby="persona-title">
-      <h1 id="persona-title">What are you playing for?</h1>
-      <p className="muted">One answer sets tone, depth, and pace everywhere. Change it anytime.</p>
+    <section className="card flow gpa-hud-card max-w-md pointer-events-auto" aria-labelledby="persona-title">
+      <h1 id="persona-title" className="gpa-text-primary text-base font-bold">What are you playing for?</h1>
+      <p className="muted gpa-text-secondary text-xs">One answer sets tone, depth, and pace everywhere. Change it anytime.</p>
       <div className="persona-grid" role="radiogroup" aria-label="Coaching style">
         {options.map((o) => (
           <button
             key={o.value}
-            className="persona-option"
+            className="persona-option gpa-target-min"
             onClick={() => dispatch({ type: 'persona/set', playstyle: o.value })}
           >
             <strong>{o.label}</strong>
-            <span className="muted">{o.hint}</span>
+            <span className="muted text-xs">{o.hint}</span>
           </button>
         ))}
       </div>
@@ -99,40 +89,39 @@ function AdviceBody({ state }: { state: OverlayState }) {
   const { hud } = state;
   switch (hud.kind) {
     case 'idle':
-      // The status word already says Watching/Capture off — no redundancy here.
       return (
-        <p className="muted">
+        <p className="muted gpa-text-secondary text-xs">
           {state.captureActive
             ? 'Press your assist hotkey at any decision point.'
             : 'Nothing is being watched. Start capture when you are ready.'}
         </p>
       );
     case 'thinking':
-      return <p className="muted pulse">Reading the frame…</p>;
+      return <p className="muted pulse gpa-text-accent text-xs">Reading the frame…</p>;
     case 'degraded':
       return (
-        <p className="muted">
+        <p className="muted gpa-text-secondary text-xs">
           No advice this frame — the decision point wasn’t clear. Try again with the relevant
           UI on screen.
         </p>
       );
     case 'refused':
       return (
-        <p>
+        <p className="gpa-text-secondary text-xs">
           <span className="badge policy">Coaching only</span> GamePointAgent won’t call out live
           opponent info you couldn’t see yourself. Ask about builds, timers, or strategy instead.
         </p>
       );
     case 'offline':
       return (
-        <p className="muted">
+        <p className="muted gpa-text-secondary text-xs">
           Offline — {hud.queued} request{hud.queued === 1 ? '' : 's'} queued. They’ll send when
           the connection returns.
         </p>
       );
     case 'unsupported':
       return (
-        <p>
+        <p className="gpa-text-secondary text-xs">
           <span className="badge warn">Unverified title</span>{' '}
           {hud.titleName ?? 'This game'} hasn’t passed GamePointAgent’s compliance review, so live
           coaching is off. General questions still work in the companion app.
@@ -142,11 +131,11 @@ function AdviceBody({ state }: { state: OverlayState }) {
       const { prefix, body } = splitNotVerified(hud.response.advice_text);
       return (
         <div className="flow-tight">
-          <p className="advice">
+          <p className="advice gpa-text-primary text-xs">
             {prefix && <span className="badge warn">{prefix}</span>} {body}
           </p>
           {hud.response.recommended_action !== 'none' && (
-            <p className="action">→ {hud.response.recommended_action}</p>
+            <p className="action gpa-text-accent text-xs font-mono font-bold">→ {hud.response.recommended_action}</p>
           )}
         </div>
       );
@@ -161,12 +150,6 @@ function statusWord(state: OverlayState): string {
   return state.captureActive ? 'Watching' : 'Capture off';
 }
 
-/**
- * WP-6 / ADR-010: push-to-talk voice command control. Rendered only once the user has
- * granted session-only voice consent. Fully wired, but real recognition stays inert while
- * ENABLE_VOICE_INPUT is false (see voice-agent.ts) — holding the button then simply reports
- * "voice input isn't available in this build yet" rather than silently doing nothing.
- */
 function VoiceTalkButton({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatch<Action> }) {
   const recognizerRef = useRef(ENABLE_VOICE_INPUT ? browserSpeechRecognizer() : null);
 
@@ -197,7 +180,7 @@ function VoiceTalkButton({ state, dispatch }: { state: OverlayState; dispatch: R
   return (
     <div className="voice-talk">
       <button
-        className="ghost"
+        className="ghost gpa-target-min"
         aria-pressed={state.voice.listening}
         onMouseDown={start}
         onMouseUp={stop}
@@ -217,8 +200,6 @@ function Hud({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatc
   const advice = state.hud.kind === 'advice' ? state.hud.response : null;
   const tier = advice ? confidenceTier(advice.confidence) : null;
 
-  // WP-6 / ADR-010: speak each new advice response once, iff voice output is consented,
-  // enabled, and not muted. Reuses the existing mute toggle rather than a second control.
   const synth = useMemo(() => browserSpeechSynthesis(), []);
   useEffect(() => {
     if (state.hud.kind !== 'advice') return;
@@ -226,12 +207,10 @@ function Hud({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatc
       enabled: state.voice.consented && state.voice.outputEnabled,
       muted: state.settings.muted,
     });
-    // Keyed on receivedAt, not the whole hud object, so this fires once per new response.
   }, [state.hud.kind === 'advice' ? state.hud.receivedAt : null]);
 
   return (
-    <section className="card flow" aria-label="GamePointAgent coaching HUD">
-      {/* 3-second sequence, tier 1: system status — text + indicator, never color alone. */}
+    <section className="card flow gpa-hud-card max-w-md pointer-events-auto" aria-label="GamePointAgent coaching HUD">
       <header className="hud-bar">
         <span className="status" role="status">
           <span
@@ -242,14 +221,14 @@ function Hud({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatc
         </span>
         <span className="spacer" />
         <button
-          className="ghost"
+          className="ghost gpa-target-min"
           aria-pressed={state.settings.muted}
           onClick={() => dispatch({ type: 'mute/toggle' })}
         >
           {state.settings.muted ? 'Unmute' : 'Mute'}
         </button>
         <button
-          className="ghost"
+          className="ghost gpa-target-min"
           disabled={state.captureLocked}
           title={state.captureLocked ? 'Session config was refused — relaunch from the web app.' : undefined}
           onClick={() => dispatch({ type: 'capture/toggle' })}
@@ -305,9 +284,6 @@ function Hud({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatc
             />
           </label>
 
-          {/* WP-6 / ADR-010: session-only voice consent — never persisted, re-asked every
-              launch. Replaces the earlier "coming later" placeholder now that voice output
-              is real; voice input stays labeled per ENABLE_VOICE_INPUT until Windows-verified. */}
           <label className="row">
             Enable voice this session
             <input
@@ -338,10 +314,22 @@ function Hud({ state, dispatch }: { state: OverlayState; dispatch: React.Dispatc
   );
 }
 
-export default function App() {
-  const [state, dispatch] = usePersistedReducer();
-  // A3: bind to the session config handed off by the web app (gpc URL param).
-  const binding = useMemo(() => resolveBinding(window.location.search), []);
+export const App: React.FC = () => {
+  const { isListening, activeCoach, telemetry, transcript, state, dispatch, selectCoach } = useVoiceAgentState();
+  const [_isInteractive, setIsInteractive] = useState<boolean>(false);
+  const hudContainerRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize Tauri OS click-through mask with interactive card bounds
+  const updateClickThrough = async (interactive: boolean) => {
+    try {
+      await invoke('set_ignore_cursor_events', { ignore: !interactive });
+      setIsInteractive(interactive);
+    } catch (err) {
+      console.warn('Window click-through state update:', err);
+    }
+  };
+
+  const binding = useMemo(() => resolveBinding(typeof window !== 'undefined' ? window.location.search : ''), []);
   const sourceRef = useRef(
     makeResponseSource(
       import.meta.env,
@@ -355,14 +343,10 @@ export default function App() {
     [binding],
   );
 
-  // A3: an invalid config locks capture structurally (reducer-level), so the HUD can
-  // never report Watching under a refused config — not just a blocked subscription.
   useEffect(() => {
     if (binding.mode === 'invalid') dispatch({ type: 'binding/refused' });
   }, [binding.mode, dispatch]);
 
-  // Deliver responses only while capturing on the HUD screen. An invalid config
-  // never degrades into fixture mode — capture stays off until it is corrected.
   useEffect(() => {
     if (binding.mode === 'invalid') return;
     if (state.screen !== 'hud' || !state.captureActive) return;
@@ -370,35 +354,129 @@ export default function App() {
       dispatch({ type: 'response/received', response, nowMs: Date.now() }),
     );
     return unsubscribe;
-  }, [state.screen, state.captureActive, sessionId, binding.mode]);
+  }, [state.screen, state.captureActive, sessionId, binding.mode, dispatch]);
 
-  const demoHotkey = useCallback(() => dispatch({ type: 'hotkey/pressed', nowMs: Date.now() }), []);
+  const demoHotkey = useCallback(() => dispatch({ type: 'hotkey/pressed', nowMs: Date.now() }), [dispatch]);
   useEffect(() => {
-    // Dev affordance: F9 simulates the assist hotkey when running the fixture source.
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'F9' && sourceRef.current instanceof FixtureResponseSource) demoHotkey();
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handler);
+      return () => window.removeEventListener('keydown', handler);
+    }
   }, [demoHotkey]);
 
   return (
-    <main className="overlay" style={{ opacity: state.settings.hudOpacity }}>
-      {binding.mode === 'invalid' && (
-        <div className="binding-banner refused" role="alert">
-          Session config refused: {binding.error}. Launch the overlay from the GamePointAgent web app.
+    <div
+      className="w-screen h-screen overflow-hidden bg-transparent select-none pointer-events-none p-6 flex flex-col justify-between"
+      style={{ minWidth: '100vw', minHeight: '100vh', opacity: state.settings.hudOpacity }}
+    >
+      {/* Top Telemetry Bar */}
+      <header className="flex justify-between items-start w-full pointer-events-none">
+        <div
+          className="pointer-events-auto bg-slate-950/90 border border-slate-800/80 rounded-lg px-3 py-1.5 shadow-2xl backdrop-blur-md flex items-center gap-3"
+          onMouseEnter={() => updateClickThrough(true)}
+          onMouseLeave={() => updateClickThrough(false)}
+        >
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${
+              telemetry.wsConnected ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
+            }`}
+          />
+          <span className="gpa-telemetry-badge text-xs font-mono font-semibold tracking-wider text-slate-200 uppercase">
+            {statusWord(state)}: {telemetry.wsConnected ? `LINKED (${telemetry.latencyMs}ms)` : 'OFFLINE'}
+          </span>
+          <span className="text-xs font-mono text-slate-400">|</span>
+          <span className="text-xs font-mono text-amber-400 font-bold uppercase">
+            COACH: {activeCoach.name}
+          </span>
         </div>
-      )}
-      {binding.mode === 'configured' && (
-        <div className="binding-banner bound">
-          Bound to session {binding.config.session_id.slice(0, 8)}… · {binding.config.title_slug}
-        </div>
-      )}
-      {state.screen === 'consent' && <ConsentScreen dispatch={dispatch} />}
-      {state.screen === 'persona' && <PersonaScreen dispatch={dispatch} />}
-      {state.screen === 'hud' && <Hud state={state} dispatch={dispatch} />}
-    </main>
-  );
-}
 
+        {binding.mode === 'invalid' && (
+          <div className="binding-banner refused pointer-events-auto" role="alert">
+            Session config refused: {binding.error}. Launch the overlay from the GamePointAgent web app.
+          </div>
+        )}
+        {binding.mode === 'configured' && (
+          <div className="binding-banner bound pointer-events-auto">
+            Bound to session {binding.config.session_id.slice(0, 8)}… · {binding.config.title_slug}
+          </div>
+        )}
+      </header>
+
+      {/* Screen Modals or Overlays */}
+      {state.screen === 'consent' && (
+        <div
+          className="pointer-events-auto flex justify-center items-center my-auto"
+          onMouseEnter={() => updateClickThrough(true)}
+          onMouseLeave={() => updateClickThrough(false)}
+        >
+          <ConsentScreen dispatch={dispatch} />
+        </div>
+      )}
+
+      {state.screen === 'persona' && (
+        <div
+          className="pointer-events-auto flex justify-center items-center my-auto"
+          onMouseEnter={() => updateClickThrough(true)}
+          onMouseLeave={() => updateClickThrough(false)}
+        >
+          <PersonaScreen dispatch={dispatch} />
+        </div>
+      )}
+
+      {/* Main Tactical Coaching Subsystem (HUD Screen) */}
+      {state.screen === 'hud' && (
+        <main className="hud-layout flex justify-between items-end w-full gap-4 pointer-events-none">
+          {/* Left / Settings Dock */}
+          <div
+            className="pointer-events-auto max-w-md w-full"
+            onMouseEnter={() => updateClickThrough(true)}
+            onMouseLeave={() => updateClickThrough(false)}
+          >
+            <Hud state={state} dispatch={dispatch} />
+          </div>
+
+          {/* Right Coaching Dialog & Voice Orb Dock */}
+          <div className="flex items-end gap-3 pointer-events-auto">
+            {transcript && (
+              <div
+                ref={hudContainerRef}
+                className="transition-all duration-150 ease-out"
+                onMouseEnter={() => updateClickThrough(true)}
+                onMouseLeave={() => updateClickThrough(false)}
+              >
+                <CoachCard
+                  coach={activeCoach}
+                  transcript={transcript}
+                  onSwitchCoach={selectCoach}
+                />
+              </div>
+            )}
+
+            {/* Ergonomic Corner Voice Orb Dock */}
+            <div
+              className="bg-slate-950/90 border border-slate-800 rounded-full p-2.5 shadow-2xl backdrop-blur-md flex items-center justify-center cursor-pointer hover:border-amber-500/50 transition-colors"
+              onMouseEnter={() => updateClickThrough(true)}
+              onMouseLeave={() => updateClickThrough(false)}
+            >
+              <VoiceOrb
+                isListening={isListening}
+                amplitude={telemetry.micAmplitude}
+                onToggle={() =>
+                  dispatch({
+                    type: state.voice.listening ? 'voice/ptt-end' : 'voice/ptt-start',
+                  })
+                }
+              />
+            </div>
+          </div>
+        </main>
+      )}
+    </div>
+  );
+};
+
+export default App;
 export { demoScript };
