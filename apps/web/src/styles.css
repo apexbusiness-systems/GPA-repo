@@ -1462,6 +1462,8 @@ footer span:last-child {
 
   .cockpit {
     grid-template-columns: 1fr;
+    min-width: 0;
+    width: 100%;
   }
 
   .nav-toggle {
@@ -1470,6 +1472,8 @@ footer span:last-child {
 
   .workspace {
     padding-top: 64px;
+    min-width: 0;
+    width: 100%;
   }
 
   .sidebar-backdrop {
@@ -1505,6 +1509,7 @@ footer span:last-child {
   .lower-grid {
     grid-template-columns: 1fr;
     padding-right: 0;
+    min-width: 0;
   }
 
   .hero-panel {
@@ -1528,6 +1533,27 @@ footer span:last-child {
 
   footer {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  footer span {
+    height: auto;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid rgba(244, 241, 229, 0.08);
+  }
+
+  footer span:last-child {
+    border-bottom: none;
+  }
+
+  .marketing-nav {
+    padding: 20px 24px;
+  }
+
+  .marketing-hero {
+    padding: 60px 16px 40px;
   }
 }
 
@@ -1740,6 +1766,8 @@ button.coach-tile.active { border-color: var(--lime, #c7ff13); box-shadow: 0 0 1
     transform: none;
     overflow: visible;
     animation-name: fadeInOnly;
+    width: min(94vw, 1600px);
+    min-width: 0;
   }
 }
 
