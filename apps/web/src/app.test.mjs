@@ -106,3 +106,20 @@ test('overlay download UI correctly supports honest refusal when unset and downl
   assert.ok(app.includes('Download Windows Overlay'), 'download CTA link missing when download url set');
 });
 
+test('replay review renders interactive telemetry engine and strategy board layers', () => {
+  const app = src('app.tsx');
+  assert.ok(app.includes('ReplayReview'), 'ReplayReview component missing from app.tsx');
+  assert.ok(app.includes('id="replay-review-engine"'), 'replay review engine section ID missing');
+  assert.ok(app.includes('Key Moments (Jump to Time)'), 'key moments header missing');
+  assert.ok(app.includes('Tactical Strategy Board'), 'tactical strategy board missing');
+  assert.ok(app.includes('Heat Zones'), 'heat zones layer toggle missing');
+});
+
+test('overlay control center provides HUD shortcuts, hotkey guide, and session token export', () => {
+  const app = src('app.tsx');
+  assert.ok(app.includes('OverlayControlCenter'), 'OverlayControlCenter component missing from app.tsx');
+  assert.ok(app.includes('HUD Shortcuts &amp; Hotkey Guide'), 'shortcuts guide missing');
+  assert.ok(app.includes('Copy Desktop Overlay Launch Token'), 'launch token copy CTA missing');
+  assert.ok(app.includes('D.A.R.E. High-Contrast HUD Simulator'), 'HUD simulator section missing');
+});
+
